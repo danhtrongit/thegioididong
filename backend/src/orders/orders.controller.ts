@@ -2,7 +2,7 @@ import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards } from '@ne
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import { OrdersService } from './orders.service.js';
-import { CreateOrderDto, UpdateOrderStatusDto, OrderNoteDto } from './dto/order.dto.js';
+import { CreateOrderDto, UpdateOrderStatusDto, OrderNoteDto, OrderLookupDto } from './dto/order.dto.js';
 import { PaginationDto } from '../common/dto/pagination.dto.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../common/guards/roles.guard.js';
@@ -25,8 +25,8 @@ export class OrdersController {
 
   @Get('orders/lookup')
   @ApiOperation({ summary: 'Tra cứu đơn hàng', description: 'Tra cứu theo số điện thoại và mã đơn hàng' })
-  async lookup(@Query('phone') phone: string, @Query('orderCode') orderCode: string) {
-    const order = await this.ordersService.lookupOrder(phone, orderCode);
+  async lookup(@Query() dto: OrderLookupDto) {
+    const order = await this.ordersService.lookupOrder(dto.phone, dto.orderCode);
     return successResponse(order, 'Tra cứu đơn hàng thành công');
   }
 

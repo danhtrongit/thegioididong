@@ -2,7 +2,7 @@ import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards } from '@ne
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import { PagesService } from './pages.service.js';
-import { CreatePageDto } from './dto/page.dto.js';
+import { CreatePageDto, UpdatePageDto } from './dto/page.dto.js';
 import { PaginationDto } from '../common/dto/pagination.dto.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../common/guards/roles.guard.js';
@@ -47,7 +47,7 @@ export class PagesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Cập nhật trang' })
-  async update(@Param('id') id: string, @Body() dto: Partial<CreatePageDto>) {
+  async update(@Param('id') id: string, @Body() dto: UpdatePageDto) {
     const page = await this.pagesService.update(id, dto);
     return successResponse(page, 'Cập nhật trang thành công');
   }

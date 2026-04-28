@@ -26,17 +26,35 @@ export class ProductsService {
         { shortDescription: { contains: query.q, mode: 'insensitive' } },
       ];
     }
-    if (query.minPrice || query.maxPrice) {
+    if (query.minPrice !== undefined || query.maxPrice !== undefined) {
       where.skus = {
         some: {
           isActive: true,
-          ...(query.minPrice && { price: { gte: query.minPrice } }),
-          ...(query.maxPrice && { price: { lte: query.maxPrice } }),
+          ...(query.minPrice !== undefined && { price: { gte: query.minPrice } }),
+          ...(query.maxPrice !== undefined && { price: { lte: query.maxPrice } }),
         },
       };
     }
-    const orderBy: Prisma.ProductOrderByWithRelationInput =
-      query.sort === 'newest' ? { createdAt: 'desc' } : { createdAt: 'desc' };
+
+    // Sort modes per spec: featured, price_asc, price_desc, newest
+    let orderBy: Prisma.ProductOrderByWithRelationInput[];
+    switch (query.sort) {
+      case 'price_asc':
+        // Sort by cheapest default SKU price ascending
+        orderBy = [{ skus: { _count: 'asc' } }];
+        break;
+      case 'price_desc':
+        orderBy = [{ skus: { _count: 'desc' } }];
+        break;
+      case 'featured':
+        // Featured products first (most SKUs = most popular), then newest
+        orderBy = [{ skus: { _count: 'desc' } }, { createdAt: 'desc' }];
+        break;
+      case 'newest':
+      default:
+        orderBy = [{ createdAt: 'desc' }];
+        break;
+    }
 
     const [products, total] = await Promise.all([
       this.prisma.product.findMany({
@@ -57,6 +75,17 @@ export class ProductsService {
       }),
       this.prisma.product.count({ where }),
     ]);
+
+    // For price_asc/price_desc, do a secondary in-memory sort by actual SKU price
+    // since Prisma doesn't support ORDER BY on nested relation scalar fields
+    if (query.sort === 'price_asc' || query.sort === 'price_desc') {
+      products.sort((a, b) => {
+        const priceA = a.skus[0] ? Number(a.skus[0].price) : 0;
+        const priceB = b.skus[0] ? Number(b.skus[0].price) : 0;
+        return query.sort === 'price_asc' ? priceA - priceB : priceB - priceA;
+      });
+    }
+
     return { products, total, page, limit };
   }
 

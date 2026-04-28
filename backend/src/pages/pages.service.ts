@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { CreatePageDto } from './dto/page.dto.js';
+import { CreatePageDto, UpdatePageDto } from './dto/page.dto.js';
 
 @Injectable()
 export class PagesService {
@@ -43,7 +43,7 @@ export class PagesService {
     });
   }
 
-  async update(id: string, dto: Partial<CreatePageDto>) {
+  async update(id: string, dto: UpdatePageDto) {
     const page = await this.prisma.page.findUnique({ where: { id } });
     if (!page) throw new NotFoundException('Không tìm thấy trang');
 

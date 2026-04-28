@@ -18,47 +18,39 @@ export class OrdersService {
   constructor(private prisma: PrismaService) {}
 
   async createOrder(dto: CreateOrderDto, userId?: string) {
-    // Validate all items server-side
-    const orderItems: any[] = [];
-    let subtotal = 0;
-
-    for (const item of dto.items) {
-      const sku = await this.prisma.sKU.findUnique({
-        where: { id: item.skuId },
-        include: { product: { select: { name: true, status: true } } },
-      });
-
-      if (!sku) throw new BadRequestException(`SKU không tồn tại`);
-      if (!sku.isActive) throw new BadRequestException(`${sku.name} đã ngừng kinh doanh`);
-      if (sku.product.status !== 'PUBLISHED') throw new BadRequestException(`Sản phẩm ${sku.product.name} không khả dụng`);
-      if (sku.stockQuantity < item.quantity) {
-        throw new BadRequestException(`${sku.name} chỉ còn ${sku.stockQuantity} sản phẩm`);
-      }
-
-      const lineTotal = Number(sku.price) * item.quantity;
-      subtotal += lineTotal;
-
-      orderItems.push({
-        skuId: sku.id,
-        productName: sku.product.name,
-        skuName: sku.name,
-        unitPrice: sku.price,
-        quantity: item.quantity,
-        lineTotal,
-      });
-    }
-
     const orderCode = this.generateOrderCode();
-    const grandTotal = subtotal; // No shipping fee or discount for MVP COD
 
-    // Create order and reduce stock in a transaction
+    // All validation + stock decrement inside a single transaction to prevent overselling
     const order = await this.prisma.$transaction(async (tx) => {
-      // Decrease stock for each SKU
+      const orderItems: any[] = [];
+      let subtotal = 0;
+
       for (const item of dto.items) {
-        await tx.sKU.update({
+        const sku = await tx.sKU.findUnique({
           where: { id: item.skuId },
+          include: { product: { select: { name: true, status: true } } },
+        });
+
+        if (!sku) throw new BadRequestException(`SKU không tồn tại`);
+        if (!sku.isActive) throw new BadRequestException(`${sku.name} đã ngừng kinh doanh`);
+        if (sku.product.status !== 'PUBLISHED') throw new BadRequestException(`Sản phẩm ${sku.product.name} không khả dụng`);
+
+        // Conditional stock decrement: only succeeds if enough stock exists
+        const updated = await tx.sKU.updateMany({
+          where: {
+            id: item.skuId,
+            stockQuantity: { gte: item.quantity },
+          },
           data: { stockQuantity: { decrement: item.quantity } },
         });
+
+        if (updated.count === 0) {
+          // Re-fetch to get current stock for accurate error message
+          const current = await tx.sKU.findUnique({ where: { id: item.skuId }, select: { stockQuantity: true } });
+          throw new BadRequestException(
+            `${sku.name} chỉ còn ${current?.stockQuantity ?? 0} sản phẩm`,
+          );
+        }
 
         // Record inventory movement
         await tx.inventoryMovement.create({
@@ -69,7 +61,21 @@ export class OrdersService {
             note: `Đơn hàng ${orderCode}`,
           },
         });
+
+        const lineTotal = Number(sku.price) * item.quantity;
+        subtotal += lineTotal;
+
+        orderItems.push({
+          skuId: sku.id,
+          productName: sku.product.name,
+          skuName: sku.name,
+          unitPrice: sku.price,
+          quantity: item.quantity,
+          lineTotal,
+        });
       }
+
+      const grandTotal = subtotal; // No shipping fee or discount for MVP COD
 
       return tx.order.create({
         data: {

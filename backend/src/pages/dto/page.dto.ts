@@ -1,5 +1,5 @@
 import { IsString, IsNotEmpty, IsOptional, IsBoolean, IsEnum, IsDateString } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { ContentStatus } from '@prisma/client';
 
 export class CreatePageDto {
@@ -60,6 +60,4 @@ export class CreatePageDto {
   publishedAt?: string;
 }
 
-export class UpdatePageDto extends CreatePageDto {
-  // All fields optional via extends with @IsOptional on parent
-}
+export class UpdatePageDto extends PartialType(CreatePageDto) {}
