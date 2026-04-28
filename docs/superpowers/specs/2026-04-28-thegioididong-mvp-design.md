@@ -2,7 +2,7 @@
 
 ## Summary
 
-Build an ecommerce MVP focused on selling phones, laptops, tablets, and accessories in the style of Thegioididong. The first version includes both the customer storefront and a complete admin dashboard so products, specifications, variants, inventory, promotions, articles, and orders can be managed without editing seed data.
+Build an ecommerce MVP focused on selling phones, laptops, tablets, and accessories in the style of Thegioididong. The first version includes both the customer storefront and a complete admin dashboard so products, specifications, variants, inventory, promotions, media assets, pages, articles, and orders can be managed without editing seed data.
 
 The MVP uses NestJS for the backend API and NextJS for the frontend applications. The current repository already contains a NestJS scaffold in `backend/`; the MVP will add a customer web app and admin experience around a structured product catalog.
 
@@ -11,6 +11,7 @@ The MVP uses NestJS for the backend API and NextJS for the frontend applications
 - Let customers browse, filter, search, compare, and order phones/laptops.
 - Let staff manage the catalog and orders from an admin dashboard from day one.
 - Let staff publish buying guides, product news, promotion articles, and SEO content from day one.
+- Let staff manage reusable media assets and static CMS pages from day one.
 - Model product variants and technical specifications properly for electronics.
 - Keep checkout simple with cash-on-delivery first.
 - Keep the architecture ready for later payment, shipping, and multi-store inventory integrations.
@@ -26,13 +27,13 @@ The MVP uses NestJS for the backend API and NextJS for the frontend applications
 - Marketplace seller management.
 - Real-time chat.
 - Native mobile app.
-- Full CMS features such as custom page builders, approval workflows, and multi-language publishing.
+- Full CMS features such as drag-and-drop page builders, approval workflows, and multi-language publishing.
 
 ## Recommended Approach
 
 Use a catalog-first MVP with full admin management.
 
-This means the system prioritizes a strong product model, specification filtering, search, product details, comparison, article content, order placement, and admin workflows. COD checkout is enough for the first release. Payment gateways and shipping providers can be added later behind explicit integration boundaries.
+This means the system prioritizes a strong product model, specification filtering, search, product details, comparison, media reuse, page/article content, order placement, and admin workflows. COD checkout is enough for the first release. Payment gateways and shipping providers can be added later behind explicit integration boundaries.
 
 ## Applications
 
@@ -40,7 +41,7 @@ This means the system prioritizes a strong product model, specification filterin
 
 Path: `backend/`
 
-NestJS API responsible for authentication, catalog data, article content, search endpoints, cart/order workflows, admin operations, file upload metadata, and database access.
+NestJS API responsible for authentication, catalog data, media metadata, page content, article content, search endpoints, cart/order workflows, admin operations, file upload metadata, and database access.
 
 ### Customer Web
 
@@ -63,7 +64,7 @@ The admin app can be developed as a separate NextJS app to keep permissions, nav
 - Browse categories and product detail pages.
 - Search and filter products.
 - Compare products.
-- Read buying guides, product news, promotion posts, and support articles.
+- Read buying guides, product news, promotion posts, support articles, and static policy pages.
 - Add items to cart.
 - Place COD order with contact and address details.
 - Track order by phone number and order code.
@@ -84,7 +85,7 @@ The admin app can be developed as a separate NextJS app to keep permissions, nav
 ### Admin
 
 - Full staff permissions.
-- Manage categories, brands, products, variants, specifications, promotions, articles, and users.
+- Manage categories, brands, products, variants, specifications, promotions, media, pages, articles, and users.
 
 ## Customer Storefront Scope
 
@@ -152,6 +153,13 @@ The admin app can be developed as a separate NextJS app to keep permissions, nav
 - Link articles to related products where useful, such as buying guides and promotion posts.
 - Show latest and related articles on home page, product detail pages, and category pages.
 - Support article search through the shared search experience.
+
+### Static Pages
+
+- SEO-friendly page detail route for content such as buying policy, warranty policy, return policy, delivery policy, about page, and store information.
+- Page detail includes title, slug, excerpt, cover image, body content, SEO title, SEO description, and publish date.
+- Customer storefront only shows published pages.
+- Header, footer, and checkout can link to selected published pages.
 
 ## Admin Dashboard Scope
 
@@ -226,6 +234,14 @@ The admin app can be developed as a separate NextJS app to keep permissions, nav
 - Mark featured articles for home page and category sections.
 - Manage author display name and reading time.
 
+### Page Management
+
+- Create, update, preview, publish, unpublish, and archive static pages.
+- Configure title, slug, excerpt, cover image, body content, SEO title, SEO description, canonical URL, template, and publish date.
+- Supported MVP templates: default content page, policy page, and store information page.
+- Mark pages as visible in footer, checkout help, or account help sections.
+- Keep page content as structured Markdown content for MVP rather than a drag-and-drop builder.
+
 ### Order Management
 
 - List orders with filters by status, phone number, date, and order code.
@@ -242,10 +258,13 @@ The admin app can be developed as a separate NextJS app to keep permissions, nav
 - Assign role.
 - Reset password through admin-controlled flow.
 
-### Upload Management
+### Media Library Management
 
-- Upload product and brand images.
-- Store file metadata in the database.
+- Upload product, brand, category, article, and page images.
+- Browse media assets by folder, type, keyword, and upload date.
+- Edit title, alt text, folder, and active/archive status.
+- Select existing media assets from product, brand, category, article, and page forms.
+- Store file metadata in the database and keep uploaded files behind a storage adapter.
 - Keep physical storage pluggable so local disk can be used first and S3-compatible storage can be added later.
 
 ## Backend Modules
@@ -259,10 +278,11 @@ The admin app can be developed as a separate NextJS app to keep permissions, nav
 - `specifications`: spec definitions and product spec values.
 - `inventory`: stock and inventory movements.
 - `promotions`: promotion records and product/SKU attachments.
+- `media`: reusable media asset metadata, folders, upload validation, and storage adapter.
+- `pages`: static CMS pages, page publishing, and public page queries.
 - `articles`: article categories, tags, posts, relations to products, and public article queries.
 - `cart`: cart validation and server-side cart support.
 - `orders`: checkout, order creation, order status updates, order lookup.
-- `uploads`: image upload metadata and storage adapter.
 
 ## Data Model
 
@@ -278,13 +298,40 @@ The admin app can be developed as a separate NextJS app to keep permissions, nav
 - `createdAt`
 - `updatedAt`
 
+### MediaFolder
+
+- `id`
+- `parentId`
+- `name`
+- `slug`
+- `sortOrder`
+- `createdAt`
+- `updatedAt`
+
+### MediaAsset
+
+- `id`
+- `folderId`
+- `uploadedByUserId`
+- `storageKey`
+- `url`
+- `mimeType`
+- `fileSizeBytes`
+- `width`
+- `height`
+- `title`
+- `altText`
+- `status`
+- `createdAt`
+- `updatedAt`
+
 ### Category
 
 - `id`
 - `parentId`
 - `name`
 - `slug`
-- `imageUrl`
+- `imageMediaAssetId`
 - `seoTitle`
 - `seoDescription`
 - `sortOrder`
@@ -295,7 +342,7 @@ The admin app can be developed as a separate NextJS app to keep permissions, nav
 - `id`
 - `name`
 - `slug`
-- `logoUrl`
+- `logoMediaAssetId`
 - `description`
 - `isActive`
 
@@ -319,7 +366,7 @@ The admin app can be developed as a separate NextJS app to keep permissions, nav
 - `id`
 - `productId`
 - `skuId`
-- `url`
+- `mediaAssetId`
 - `altText`
 - `sortOrder`
 
@@ -403,7 +450,7 @@ Examples: `color = Titan Xanh`, `storage = 256GB`, `ram = 8GB`.
 - `title`
 - `slug`
 - `excerpt`
-- `coverImageUrl`
+- `coverMediaAssetId`
 - `content`
 - `seoTitle`
 - `seoDescription`
@@ -425,6 +472,27 @@ Examples: `color = Titan Xanh`, `storage = 256GB`, `ram = 8GB`.
 - `id`
 - `articleId`
 - `articleTagId`
+
+### Page
+
+- `id`
+- `authorUserId`
+- `title`
+- `slug`
+- `excerpt`
+- `coverMediaAssetId`
+- `content`
+- `template`
+- `seoTitle`
+- `seoDescription`
+- `canonicalUrl`
+- `status`
+- `showInFooter`
+- `showInCheckoutHelp`
+- `showInAccountHelp`
+- `publishedAt`
+- `createdAt`
+- `updatedAt`
 
 ### InventoryMovement
 
@@ -500,6 +568,7 @@ Examples: `color = Titan Xanh`, `storage = 256GB`, `ram = 8GB`.
 - `GET /articles`
 - `GET /articles/:slug`
 - `GET /article-categories`
+- `GET /pages/:slug`
 - `POST /cart/validate`
 - `POST /orders`
 - `GET /orders/lookup`
@@ -528,6 +597,17 @@ Examples: `color = Titan Xanh`, `storage = 256GB`, `ram = 8GB`.
 - `GET /admin/promotions`
 - `POST /admin/promotions`
 - `PATCH /admin/promotions/:id`
+- `GET /admin/media/folders`
+- `POST /admin/media/folders`
+- `PATCH /admin/media/folders/:id`
+- `GET /admin/media/assets`
+- `POST /admin/media/assets`
+- `PATCH /admin/media/assets/:id`
+- `DELETE /admin/media/assets/:id`
+- `GET /admin/pages`
+- `POST /admin/pages`
+- `PATCH /admin/pages/:id`
+- `POST /admin/pages/:id/preview`
 - `GET /admin/article-categories`
 - `POST /admin/article-categories`
 - `PATCH /admin/article-categories/:id`
@@ -560,6 +640,7 @@ Examples: `color = Titan Xanh`, `storage = 256GB`, `ram = 8GB`.
 - `/tin-tuc`
 - `/tin-tuc/[categorySlug]`
 - `/bai-viet/[slug]`
+- `/trang/[slug]`
 - `/san-pham/[slug]`
 - `/gio-hang`
 - `/thanh-toan`
@@ -578,6 +659,10 @@ Examples: `color = Titan Xanh`, `storage = 256GB`, `ram = 8GB`.
 - `/admin/products/[id]`
 - `/admin/inventory`
 - `/admin/promotions`
+- `/admin/media`
+- `/admin/pages`
+- `/admin/pages/new`
+- `/admin/pages/[id]`
 - `/admin/articles`
 - `/admin/articles/new`
 - `/admin/articles/[id]`
@@ -627,12 +712,30 @@ If the order is canceled, stock is restored with an inventory movement record.
 4. Admin publishes the article.
 5. Customer storefront only shows published articles with a `publishedAt` date in the past or present.
 
+### Media Selection
+
+1. Admin uploads an image into the media library.
+2. NestJS validates file type, size, and image metadata.
+3. NestJS stores the file using the configured storage adapter and saves a `MediaAsset` record.
+4. Admin selects the asset from product, category, brand, article, or page forms.
+5. Customer storefront renders the resolved media URL and alt text from the linked `MediaAsset`.
+
+### Page Publishing
+
+1. Admin creates a page draft.
+2. Admin selects template, cover image, body content, SEO metadata, and navigation visibility flags.
+3. Admin previews the page.
+4. Admin publishes the page.
+5. Customer storefront only shows published pages with a `publishedAt` date in the past or present.
+
 ## Error Handling
 
 - API validation errors return field-level messages.
 - Auth errors return clear unauthorized or forbidden responses.
 - Checkout fails if SKU is inactive, out of stock, quantity is invalid, or submitted price is stale.
+- Page public routes return not found for drafts, archived pages, and future-scheduled pages.
 - Article public pages return not found for drafts, archived posts, and future-scheduled posts.
+- Media delete archives the asset when it is referenced by products, brands, categories, articles, or pages.
 - Admin delete actions should soft-delete or deactivate records when data is referenced by orders.
 - Order status transitions should reject invalid moves such as `completed` back to `pending`.
 
@@ -642,7 +745,9 @@ If the order is canceled, stock is restored with an inventory movement record.
 - Admin APIs require authenticated users and role checks.
 - Customer-facing APIs expose only published and active catalog data.
 - Customer-facing article APIs expose only published articles.
+- Customer-facing page APIs expose only published pages.
 - Uploads must validate file type and size.
+- Page and article content must be sanitized before rendering.
 - Admin forms must not trust client-provided price totals.
 - Order totals are calculated on the server.
 
@@ -651,16 +756,18 @@ If the order is canceled, stock is restored with an inventory movement record.
 ### Backend
 
 - Unit tests for product filtering, checkout validation, order total calculation, and order status transitions.
+- Unit tests for media validation, media archive behavior, and page publishing visibility.
 - Unit tests for article publishing visibility and slug uniqueness.
 - Integration tests for public product APIs.
-- E2E tests for admin auth, product creation, SKU creation, article publishing, and order creation.
+- E2E tests for admin auth, media upload, product creation, SKU creation, page publishing, article publishing, and order creation.
 
 ### Frontend
 
 - Component tests for product card, filter controls, SKU selector, cart summary, and admin forms.
 - Playwright tests for browse-to-checkout flow.
+- Playwright tests for static page detail routes.
 - Playwright tests for article listing and article detail pages.
-- Playwright tests for admin login, product creation, and order status update.
+- Playwright tests for admin login, media selection, page creation, product creation, and order status update.
 
 ### Seed Data
 
@@ -671,6 +778,8 @@ MVP should include seed data for:
 - Accessory category with charger and case examples.
 - Article categories for news, buying guides, promotions, tips, and support.
 - Sample articles linked to phone and laptop products.
+- Media folders for products, brands, articles, pages, and banners.
+- Sample static pages for warranty policy, return policy, delivery policy, and about page.
 - Admin user.
 - Staff user.
 
@@ -693,7 +802,8 @@ Seed data is only for local development and demos. Real product data must be man
 - Add brand management.
 - Add product management.
 - Add SKU and specification management.
-- Add image upload metadata.
+- Add media library management.
+- Add static page management.
 - Add article category, tag, and article management.
 
 ### Phase 3: Customer Catalog And Content
@@ -706,6 +816,7 @@ Seed data is only for local development and demos. Real product data must be man
 - Add article listing.
 - Add article detail.
 - Add article-to-product related sections.
+- Add static page detail routes.
 
 ### Phase 4: Cart And Orders
 
@@ -725,12 +836,15 @@ Seed data is only for local development and demos. Real product data must be man
 
 ## Acceptance Criteria
 
-- Admin can log in and manage categories, brands, products, SKUs, specifications, inventory, promotions, users, and orders.
+- Admin can log in and manage categories, brands, products, SKUs, specifications, inventory, promotions, media, pages, users, and orders.
+- Admin can upload, browse, edit, select, and archive media assets.
+- Admin can create and publish static pages for warranty, return, delivery, about, and store information content.
 - Admin can manage article categories, tags, articles, article SEO metadata, and related products.
 - Admin can create a phone product with multiple storage/color SKUs and publish it.
 - Admin can create and publish a buying guide article linked to relevant phone/laptop products.
 - Customer can find the published product through category listing and search.
 - Customer can read published articles and navigate from an article to related products.
+- Customer can read published static pages linked from storefront navigation areas.
 - Customer can view product detail, select a SKU, add it to cart, and place a COD order.
 - Checkout stores a price snapshot and rejects stale or invalid SKU data.
 - Admin can view the new order and update its status.
@@ -742,5 +856,6 @@ Seed data is only for local development and demos. Real product data must be man
 
 - ORM: use Prisma for schema definition, migrations, generated types, and seed data.
 - UI component system: use shadcn/ui for customer and admin components.
+- Content editor: use Markdown for pages and articles in the MVP. A rich text editor can replace it later without changing public routes.
 - Search engine: use PostgreSQL-backed search in the first implementation. Add Meilisearch only after the catalog API is stable.
 - Image storage: use local disk for development. Keep the storage adapter interface compatible with S3-compatible production storage.
