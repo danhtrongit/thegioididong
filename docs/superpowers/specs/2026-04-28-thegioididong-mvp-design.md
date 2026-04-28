@@ -2,7 +2,7 @@
 
 ## Summary
 
-Build an ecommerce MVP focused on selling phones, laptops, tablets, and accessories in the style of Thegioididong. The first version includes both the customer storefront and a complete admin dashboard so products, specifications, variants, inventory, promotions, and orders can be managed without editing seed data.
+Build an ecommerce MVP focused on selling phones, laptops, tablets, and accessories in the style of Thegioididong. The first version includes both the customer storefront and a complete admin dashboard so products, specifications, variants, inventory, promotions, articles, and orders can be managed without editing seed data.
 
 The MVP uses NestJS for the backend API and NextJS for the frontend applications. The current repository already contains a NestJS scaffold in `backend/`; the MVP will add a customer web app and admin experience around a structured product catalog.
 
@@ -10,6 +10,7 @@ The MVP uses NestJS for the backend API and NextJS for the frontend applications
 
 - Let customers browse, filter, search, compare, and order phones/laptops.
 - Let staff manage the catalog and orders from an admin dashboard from day one.
+- Let staff publish buying guides, product news, promotion articles, and SEO content from day one.
 - Model product variants and technical specifications properly for electronics.
 - Keep checkout simple with cash-on-delivery first.
 - Keep the architecture ready for later payment, shipping, and multi-store inventory integrations.
@@ -25,12 +26,13 @@ The MVP uses NestJS for the backend API and NextJS for the frontend applications
 - Marketplace seller management.
 - Real-time chat.
 - Native mobile app.
+- Full CMS features such as custom page builders, approval workflows, and multi-language publishing.
 
 ## Recommended Approach
 
 Use a catalog-first MVP with full admin management.
 
-This means the system prioritizes a strong product model, specification filtering, search, product details, comparison, order placement, and admin workflows. COD checkout is enough for the first release. Payment gateways and shipping providers can be added later behind explicit integration boundaries.
+This means the system prioritizes a strong product model, specification filtering, search, product details, comparison, article content, order placement, and admin workflows. COD checkout is enough for the first release. Payment gateways and shipping providers can be added later behind explicit integration boundaries.
 
 ## Applications
 
@@ -38,7 +40,7 @@ This means the system prioritizes a strong product model, specification filterin
 
 Path: `backend/`
 
-NestJS API responsible for authentication, catalog data, search endpoints, cart/order workflows, admin operations, file upload metadata, and database access.
+NestJS API responsible for authentication, catalog data, article content, search endpoints, cart/order workflows, admin operations, file upload metadata, and database access.
 
 ### Customer Web
 
@@ -61,6 +63,7 @@ The admin app can be developed as a separate NextJS app to keep permissions, nav
 - Browse categories and product detail pages.
 - Search and filter products.
 - Compare products.
+- Read buying guides, product news, promotion posts, and support articles.
 - Add items to cart.
 - Place COD order with contact and address details.
 - Track order by phone number and order code.
@@ -81,7 +84,7 @@ The admin app can be developed as a separate NextJS app to keep permissions, nav
 ### Admin
 
 - Full staff permissions.
-- Manage categories, brands, products, variants, specifications, promotions, and users.
+- Manage categories, brands, products, variants, specifications, promotions, articles, and users.
 
 ## Customer Storefront Scope
 
@@ -89,7 +92,7 @@ The admin app can be developed as a separate NextJS app to keep permissions, nav
 
 - Header with logo, search, cart, account/order lookup entry.
 - Main category navigation: phones, laptops, tablets, accessories.
-- Featured sections for hot products, promotions, new arrivals, and laptop/phone collections.
+- Featured sections for hot products, promotions, new arrivals, laptop/phone collections, and latest buying guides.
 
 ### Category Listing
 
@@ -140,6 +143,15 @@ The admin app can be developed as a separate NextJS app to keep permissions, nav
 
 - Lookup by phone number and order code.
 - Show order status and order items.
+
+### Articles And Buying Guides
+
+- SEO-friendly article listing page.
+- Article category pages for news, buying guides, promotions, tips, and support.
+- Article detail page with title, slug, excerpt, cover image, author, published date, content, table of contents, and related articles.
+- Link articles to related products where useful, such as buying guides and promotion posts.
+- Show latest and related articles on home page, product detail pages, and category pages.
+- Support article search through the shared search experience.
 
 ## Admin Dashboard Scope
 
@@ -205,6 +217,15 @@ The admin app can be developed as a separate NextJS app to keep permissions, nav
 - Attach promotions to products or SKUs.
 - MVP promotions affect display only unless an explicit fixed discount is configured.
 
+### Article Management
+
+- Create, update, preview, publish, unpublish, and archive articles.
+- Manage article categories and tags.
+- Configure title, slug, excerpt, cover image, body content, SEO title, SEO description, canonical URL, and publish date.
+- Link articles to related products.
+- Mark featured articles for home page and category sections.
+- Manage author display name and reading time.
+
 ### Order Management
 
 - List orders with filters by status, phone number, date, and order code.
@@ -238,6 +259,7 @@ The admin app can be developed as a separate NextJS app to keep permissions, nav
 - `specifications`: spec definitions and product spec values.
 - `inventory`: stock and inventory movements.
 - `promotions`: promotion records and product/SKU attachments.
+- `articles`: article categories, tags, posts, relations to products, and public article queries.
 - `cart`: cart validation and server-side cart support.
 - `orders`: checkout, order creation, order status updates, order lookup.
 - `uploads`: image upload metadata and storage adapter.
@@ -358,6 +380,52 @@ Examples: `color = Titan Xanh`, `storage = 256GB`, `ram = 8GB`.
 - `endsAt`
 - `isActive`
 
+### ArticleCategory
+
+- `id`
+- `name`
+- `slug`
+- `description`
+- `sortOrder`
+- `isActive`
+
+### ArticleTag
+
+- `id`
+- `name`
+- `slug`
+
+### Article
+
+- `id`
+- `articleCategoryId`
+- `authorUserId`
+- `title`
+- `slug`
+- `excerpt`
+- `coverImageUrl`
+- `content`
+- `seoTitle`
+- `seoDescription`
+- `canonicalUrl`
+- `status`
+- `isFeatured`
+- `publishedAt`
+- `createdAt`
+- `updatedAt`
+
+### ArticleProduct
+
+- `id`
+- `articleId`
+- `productId`
+
+### ArticleTagMap
+
+- `id`
+- `articleId`
+- `articleTagId`
+
 ### InventoryMovement
 
 - `id`
@@ -429,6 +497,9 @@ Examples: `color = Titan Xanh`, `storage = 256GB`, `ram = 8GB`.
 - `GET /products/compare`
 - `GET /search/suggestions`
 - `GET /search`
+- `GET /articles`
+- `GET /articles/:slug`
+- `GET /article-categories`
 - `POST /cart/validate`
 - `POST /orders`
 - `GET /orders/lookup`
@@ -457,6 +528,16 @@ Examples: `color = Titan Xanh`, `storage = 256GB`, `ram = 8GB`.
 - `GET /admin/promotions`
 - `POST /admin/promotions`
 - `PATCH /admin/promotions/:id`
+- `GET /admin/article-categories`
+- `POST /admin/article-categories`
+- `PATCH /admin/article-categories/:id`
+- `GET /admin/article-tags`
+- `POST /admin/article-tags`
+- `PATCH /admin/article-tags/:id`
+- `GET /admin/articles`
+- `POST /admin/articles`
+- `PATCH /admin/articles/:id`
+- `POST /admin/articles/:id/preview`
 - `GET /admin/orders`
 - `GET /admin/orders/:id`
 - `PATCH /admin/orders/:id/status`
@@ -476,6 +557,9 @@ Examples: `color = Titan Xanh`, `storage = 256GB`, `ram = 8GB`.
 - `/phu-kien`
 - `/tim-kiem`
 - `/so-sanh`
+- `/tin-tuc`
+- `/tin-tuc/[categorySlug]`
+- `/bai-viet/[slug]`
 - `/san-pham/[slug]`
 - `/gio-hang`
 - `/thanh-toan`
@@ -494,6 +578,10 @@ Examples: `color = Titan Xanh`, `storage = 256GB`, `ram = 8GB`.
 - `/admin/products/[id]`
 - `/admin/inventory`
 - `/admin/promotions`
+- `/admin/articles`
+- `/admin/articles/new`
+- `/admin/articles/[id]`
+- `/admin/article-categories`
 - `/admin/orders`
 - `/admin/orders/[id]`
 - `/admin/users`
@@ -531,11 +619,20 @@ If the order is canceled, stock is restored with an inventory movement record.
 3. Admin publishes product.
 4. Customer storefront only shows published products with at least one active SKU.
 
+### Article Publishing
+
+1. Admin creates an article draft.
+2. Admin selects article category, tags, cover image, body content, related products, and SEO metadata.
+3. Admin previews the article.
+4. Admin publishes the article.
+5. Customer storefront only shows published articles with a `publishedAt` date in the past or present.
+
 ## Error Handling
 
 - API validation errors return field-level messages.
 - Auth errors return clear unauthorized or forbidden responses.
 - Checkout fails if SKU is inactive, out of stock, quantity is invalid, or submitted price is stale.
+- Article public pages return not found for drafts, archived posts, and future-scheduled posts.
 - Admin delete actions should soft-delete or deactivate records when data is referenced by orders.
 - Order status transitions should reject invalid moves such as `completed` back to `pending`.
 
@@ -544,6 +641,7 @@ If the order is canceled, stock is restored with an inventory movement record.
 - Passwords must be hashed with a strong password hashing algorithm.
 - Admin APIs require authenticated users and role checks.
 - Customer-facing APIs expose only published and active catalog data.
+- Customer-facing article APIs expose only published articles.
 - Uploads must validate file type and size.
 - Admin forms must not trust client-provided price totals.
 - Order totals are calculated on the server.
@@ -553,13 +651,15 @@ If the order is canceled, stock is restored with an inventory movement record.
 ### Backend
 
 - Unit tests for product filtering, checkout validation, order total calculation, and order status transitions.
+- Unit tests for article publishing visibility and slug uniqueness.
 - Integration tests for public product APIs.
-- E2E tests for admin auth, product creation, SKU creation, and order creation.
+- E2E tests for admin auth, product creation, SKU creation, article publishing, and order creation.
 
 ### Frontend
 
 - Component tests for product card, filter controls, SKU selector, cart summary, and admin forms.
 - Playwright tests for browse-to-checkout flow.
+- Playwright tests for article listing and article detail pages.
 - Playwright tests for admin login, product creation, and order status update.
 
 ### Seed Data
@@ -569,6 +669,8 @@ MVP should include seed data for:
 - Phone category with iPhone, Samsung, Xiaomi examples.
 - Laptop category with MacBook, Dell, ASUS examples.
 - Accessory category with charger and case examples.
+- Article categories for news, buying guides, promotions, tips, and support.
+- Sample articles linked to phone and laptop products.
 - Admin user.
 - Staff user.
 
@@ -592,14 +694,18 @@ Seed data is only for local development and demos. Real product data must be man
 - Add product management.
 - Add SKU and specification management.
 - Add image upload metadata.
+- Add article category, tag, and article management.
 
-### Phase 3: Customer Catalog
+### Phase 3: Customer Catalog And Content
 
 - Add home page.
 - Add category listing.
 - Add search.
 - Add product detail.
 - Add comparison.
+- Add article listing.
+- Add article detail.
+- Add article-to-product related sections.
 
 ### Phase 4: Cart And Orders
 
@@ -620,8 +726,11 @@ Seed data is only for local development and demos. Real product data must be man
 ## Acceptance Criteria
 
 - Admin can log in and manage categories, brands, products, SKUs, specifications, inventory, promotions, users, and orders.
+- Admin can manage article categories, tags, articles, article SEO metadata, and related products.
 - Admin can create a phone product with multiple storage/color SKUs and publish it.
+- Admin can create and publish a buying guide article linked to relevant phone/laptop products.
 - Customer can find the published product through category listing and search.
+- Customer can read published articles and navigate from an article to related products.
 - Customer can view product detail, select a SKU, add it to cart, and place a COD order.
 - Checkout stores a price snapshot and rejects stale or invalid SKU data.
 - Admin can view the new order and update its status.
