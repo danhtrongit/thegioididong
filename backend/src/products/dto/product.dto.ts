@@ -316,7 +316,10 @@ export class ProductQueryDto {
   @IsNumber()
   maxPrice?: number;
 
-  @ApiPropertyOptional({ description: 'Sắp xếp: featured, price_asc, price_desc, newest' })
+  @ApiPropertyOptional({
+    description: 'Sắp xếp: featured, price_asc, price_desc, newest',
+    enum: ['featured', 'price_asc', 'price_desc', 'newest'],
+  })
   @IsOptional()
   @IsString()
   sort?: string;
@@ -325,4 +328,12 @@ export class ProductQueryDto {
   @IsOptional()
   @IsString()
   q?: string;
+
+  @ApiPropertyOptional({
+    description: 'Bộ lọc thông số kỹ thuật (JSON). Ví dụ: {"RAM":"8GB","Chip xử lý":"A18 Pro"}',
+    example: '{"RAM":"8GB"}',
+  })
+  @IsOptional()
+  @IsString()
+  specs?: string;
 }

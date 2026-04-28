@@ -508,6 +508,27 @@ async function main() {
 
   console.log('✅ Tạo trang nội dung');
 
+  // ==================== SYNC DEFAULT PRICES ====================
+  const allProducts = await prisma.product.findMany({ select: { id: true } });
+  for (const prod of allProducts) {
+    const defaultSku = await prisma.sKU.findFirst({
+      where: { productId: prod.id, isActive: true, isDefault: true },
+      select: { price: true },
+    });
+    const price = defaultSku
+      ? defaultSku.price
+      : (await prisma.sKU.findFirst({
+          where: { productId: prod.id, isActive: true },
+          orderBy: { price: 'asc' },
+          select: { price: true },
+        }))?.price ?? null;
+    await prisma.product.update({
+      where: { id: prod.id },
+      data: { defaultPrice: price },
+    });
+  }
+  console.log('✅ Đồng bộ giá mặc định');
+
   console.log('\n🎉 Hoàn thành tạo dữ liệu mẫu!');
   console.log('📧 Admin: admin@didong.local / Admin@123456');
   console.log('📧 Staff: staff@didong.local / Staff@123456');

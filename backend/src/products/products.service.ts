@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { Prisma } from '@prisma/client';
 import {
@@ -36,18 +36,47 @@ export class ProductsService {
       };
     }
 
-    // Sort modes per spec: featured, price_asc, price_desc, newest
+    // Category-specific spec filters
+    // Input: specs={"RAM":"8GB","Chip xử lý":"A18 Pro"}
+    if (query.specs) {
+      try {
+        const specFilters: Record<string, string> = JSON.parse(query.specs);
+        const specConditions: Prisma.ProductWhereInput[] = [];
+
+        for (const [specName, specValue] of Object.entries(specFilters)) {
+          if (specName && specValue) {
+            specConditions.push({
+              specifications: {
+                some: {
+                  specificationDefinition: {
+                    name: specName,
+                    isFilterable: true,
+                  },
+                  valueText: { contains: specValue, mode: 'insensitive' },
+                },
+              },
+            });
+          }
+        }
+
+        if (specConditions.length > 0) {
+          where.AND = specConditions;
+        }
+      } catch {
+        throw new BadRequestException('Tham số specs không hợp lệ. Phải là JSON object, ví dụ: {"RAM":"8GB"}');
+      }
+    }
+
+    // Sort modes: uses denormalized defaultPrice for DB-level ORDER BY + pagination
     let orderBy: Prisma.ProductOrderByWithRelationInput[];
     switch (query.sort) {
       case 'price_asc':
-        // Sort by cheapest default SKU price ascending
-        orderBy = [{ skus: { _count: 'asc' } }];
+        orderBy = [{ defaultPrice: { sort: 'asc', nulls: 'last' } }];
         break;
       case 'price_desc':
-        orderBy = [{ skus: { _count: 'desc' } }];
+        orderBy = [{ defaultPrice: { sort: 'desc', nulls: 'last' } }];
         break;
       case 'featured':
-        // Featured products first (most SKUs = most popular), then newest
         orderBy = [{ skus: { _count: 'desc' } }, { createdAt: 'desc' }];
         break;
       case 'newest':
@@ -75,16 +104,6 @@ export class ProductsService {
       }),
       this.prisma.product.count({ where }),
     ]);
-
-    // For price_asc/price_desc, do a secondary in-memory sort by actual SKU price
-    // since Prisma doesn't support ORDER BY on nested relation scalar fields
-    if (query.sort === 'price_asc' || query.sort === 'price_desc') {
-      products.sort((a, b) => {
-        const priceA = a.skus[0] ? Number(a.skus[0].price) : 0;
-        const priceB = b.skus[0] ? Number(b.skus[0].price) : 0;
-        return query.sort === 'price_asc' ? priceA - priceB : priceB - priceA;
-      });
-    }
 
     return { products, total, page, limit };
   }
@@ -207,7 +226,7 @@ export class ProductsService {
     if (dto.isDefault) {
       await this.prisma.sKU.updateMany({ where: { productId, isDefault: true }, data: { isDefault: false } });
     }
-    return this.prisma.sKU.create({
+    const sku = await this.prisma.sKU.create({
       data: {
         productId, skuCode: dto.skuCode, barcode: dto.barcode, name: dto.name,
         price: dto.price, oldPrice: dto.oldPrice, costPrice: dto.costPrice,
@@ -217,6 +236,11 @@ export class ProductsService {
       },
       include: { variantAttributes: true },
     });
+
+    // Sync denormalized defaultPrice on product
+    await this.syncDefaultPrice(productId);
+
+    return sku;
   }
 
   async updateSKU(skuId: string, dto: UpdateSKUDto) {
@@ -225,7 +249,14 @@ export class ProductsService {
     if (dto.isDefault) {
       await this.prisma.sKU.updateMany({ where: { productId: sku.productId, isDefault: true, id: { not: skuId } }, data: { isDefault: false } });
     }
-    return this.prisma.sKU.update({ where: { id: skuId }, data: dto, include: { variantAttributes: true } });
+    const updated = await this.prisma.sKU.update({ where: { id: skuId }, data: dto, include: { variantAttributes: true } });
+
+    // Sync denormalized defaultPrice if price or isDefault or isActive changed
+    if (dto.price !== undefined || dto.isDefault !== undefined || dto.isActive !== undefined) {
+      await this.syncDefaultPrice(sku.productId);
+    }
+
+    return updated;
   }
 
   async searchSuggestions(q: string) {
@@ -242,4 +273,30 @@ export class ProductsService {
       take: 8,
     });
   }
+
+  /**
+   * Sync the denormalized defaultPrice field on Product.
+   * Uses the default SKU's price, or the cheapest active SKU's price if no default.
+   */
+  private async syncDefaultPrice(productId: string) {
+    // Find default SKU first, then fall back to cheapest active SKU
+    const defaultSku = await this.prisma.sKU.findFirst({
+      where: { productId, isActive: true, isDefault: true },
+      select: { price: true },
+    });
+
+    const price = defaultSku
+      ? defaultSku.price
+      : (await this.prisma.sKU.findFirst({
+          where: { productId, isActive: true },
+          orderBy: { price: 'asc' },
+          select: { price: true },
+        }))?.price ?? null;
+
+    await this.prisma.product.update({
+      where: { id: productId },
+      data: { defaultPrice: price },
+    });
+  }
 }
+

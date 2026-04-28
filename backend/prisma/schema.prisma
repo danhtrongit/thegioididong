@@ -196,6 +196,7 @@ model Product {
   description      String?
   seoTitle         String?
   seoDescription   String?
+  defaultPrice     Decimal?      @db.Decimal(15, 2)
   status           ProductStatus @default(DRAFT)
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
@@ -209,6 +210,7 @@ model Product {
   promotions     PromotionProduct[]
   articleLinks   ArticleProduct[]
 
+  @@index([defaultPrice])
   @@map("products")
 }
 
