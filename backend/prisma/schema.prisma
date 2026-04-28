@@ -1,0 +1,542 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ==================== ENUMS ====================
+
+enum UserRole {
+  ADMIN
+  STAFF
+  CUSTOMER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum ProductStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum MediaStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPING
+  COMPLETED
+  CANCELED
+}
+
+enum FulfillmentMethod {
+  DELIVERY
+  PICKUP
+}
+
+enum PaymentMethod {
+  COD
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+enum SpecValueType {
+  TEXT
+  NUMBER
+  BOOLEAN
+  OPTION
+}
+
+enum InventoryReason {
+  MANUAL_ADJUST
+  ORDER_PLACED
+  ORDER_CANCELED
+  STOCK_IN
+  STOCK_OUT
+  CORRECTION
+}
+
+// ==================== MODELS ====================
+
+model User {
+  id           String     @id @default(uuid())
+  email        String     @unique
+  passwordHash String
+  fullName     String
+  phone        String?
+  role         UserRole   @default(CUSTOMER)
+  status       UserStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  // Relations
+  uploadedMedia      MediaAsset[]        @relation("UploadedMedia")
+  articles           Article[]
+  pages              Page[]
+  inventoryMovements InventoryMovement[]
+  orders             Order[]
+  carts              Cart[]
+
+  @@map("users")
+}
+
+model MediaFolder {
+  id        String   @id @default(uuid())
+  parentId  String?
+  name      String
+  slug      String   @unique
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Self-relation
+  parent   MediaFolder?  @relation("FolderTree", fields: [parentId], references: [id])
+  children MediaFolder[] @relation("FolderTree")
+
+  // Relations
+  assets MediaAsset[]
+
+  @@map("media_folders")
+}
+
+model MediaAsset {
+  id               String      @id @default(uuid())
+  folderId         String?
+  uploadedByUserId String?
+  storageKey       String
+  url              String
+  mimeType         String
+  fileSizeBytes    Int
+  width            Int?
+  height           Int?
+  title            String?
+  altText          String?
+  status           MediaStatus @default(ACTIVE)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  // Relations
+  folder     MediaFolder? @relation(fields: [folderId], references: [id])
+  uploadedBy User?        @relation("UploadedMedia", fields: [uploadedByUserId], references: [id])
+
+  // Reverse relations
+  categoryImages  Category[]     @relation("CategoryImage")
+  brandLogos      Brand[]        @relation("BrandLogo")
+  productImages   ProductImage[]
+  articleCovers   Article[]      @relation("ArticleCover")
+  pageCovers      Page[]         @relation("PageCover")
+
+  @@map("media_assets")
+}
+
+model Category {
+  id                String  @id @default(uuid())
+  parentId          String?
+  name              String
+  slug              String  @unique
+  imageMediaAssetId String?
+  seoTitle          String?
+  seoDescription    String?
+  sortOrder         Int     @default(0)
+  isActive          Boolean @default(true)
+
+  // Self-relation
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryTree")
+
+  // Relations
+  image                    MediaAsset?               @relation("CategoryImage", fields: [imageMediaAssetId], references: [id])
+  products                 Product[]
+  specificationDefinitions SpecificationDefinition[]
+
+  @@map("categories")
+}
+
+model Brand {
+  id               String  @id @default(uuid())
+  name             String
+  slug             String  @unique
+  logoMediaAssetId String?
+  description      String?
+  isActive         Boolean @default(true)
+
+  // Relations
+  logo     MediaAsset? @relation("BrandLogo", fields: [logoMediaAssetId], references: [id])
+  products Product[]
+
+  @@map("brands")
+}
+
+model Product {
+  id               String        @id @default(uuid())
+  categoryId       String
+  brandId          String
+  name             String
+  slug             String        @unique
+  shortDescription String?
+  description      String?
+  seoTitle         String?
+  seoDescription   String?
+  status           ProductStatus @default(DRAFT)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  // Relations
+  category       Category              @relation(fields: [categoryId], references: [id])
+  brand          Brand                 @relation(fields: [brandId], references: [id])
+  images         ProductImage[]
+  skus           SKU[]
+  specifications ProductSpecification[]
+  promotions     PromotionProduct[]
+  articleLinks   ArticleProduct[]
+
+  @@map("products")
+}
+
+model ProductImage {
+  id           String @id @default(uuid())
+  productId    String
+  skuId        String?
+  mediaAssetId String
+  altText      String?
+  sortOrder    Int    @default(0)
+
+  // Relations
+  product    Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sku        SKU?       @relation(fields: [skuId], references: [id])
+  mediaAsset MediaAsset @relation(fields: [mediaAssetId], references: [id])
+
+  @@map("product_images")
+}
+
+model SKU {
+  id                String  @id @default(uuid())
+  productId         String
+  skuCode           String  @unique
+  barcode           String?
+  name              String
+  price             Decimal @db.Decimal(15, 2)
+  oldPrice          Decimal? @db.Decimal(15, 2)
+  costPrice         Decimal? @db.Decimal(15, 2)
+  stockQuantity     Int     @default(0)
+  lowStockThreshold Int     @default(5)
+  isDefault         Boolean @default(false)
+  isActive          Boolean @default(true)
+
+  // Relations
+  product            Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variantAttributes  VariantAttribute[]
+  productImages      ProductImage[]
+  inventoryMovements InventoryMovement[]
+  cartItems          CartItem[]
+  orderItems         OrderItem[]
+  promotions         PromotionSKU[]
+
+  @@map("skus")
+}
+
+model VariantAttribute {
+  id    String @id @default(uuid())
+  skuId String
+  name  String
+  value String
+
+  // Relations
+  sku SKU @relation(fields: [skuId], references: [id], onDelete: Cascade)
+
+  @@map("variant_attributes")
+}
+
+model SpecificationDefinition {
+  id            String        @id @default(uuid())
+  categoryId    String
+  groupName     String
+  name          String
+  valueType     SpecValueType @default(TEXT)
+  unit          String?
+  isFilterable  Boolean       @default(false)
+  isComparable  Boolean       @default(false)
+  isHighlighted Boolean       @default(false)
+  sortOrder     Int           @default(0)
+
+  // Relations
+  category     Category               @relation(fields: [categoryId], references: [id])
+  productSpecs ProductSpecification[]
+
+  @@map("specification_definitions")
+}
+
+model ProductSpecification {
+  id                        String  @id @default(uuid())
+  productId                 String
+  specificationDefinitionId String
+  valueText                 String?
+  valueNumber               Float?
+  valueBoolean              Boolean?
+
+  // Relations
+  product                 Product                 @relation(fields: [productId], references: [id], onDelete: Cascade)
+  specificationDefinition SpecificationDefinition @relation(fields: [specificationDefinitionId], references: [id])
+
+  @@unique([productId, specificationDefinitionId])
+  @@map("product_specifications")
+}
+
+model Promotion {
+  id            String       @id @default(uuid())
+  title         String
+  description   String?
+  discountType  DiscountType @default(PERCENTAGE)
+  discountValue Decimal      @db.Decimal(15, 2)
+  startsAt      DateTime
+  endsAt        DateTime
+  isActive      Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  // Relations
+  products PromotionProduct[]
+  skus     PromotionSKU[]
+
+  @@map("promotions")
+}
+
+model PromotionProduct {
+  id          String @id @default(uuid())
+  promotionId String
+  productId   String
+
+  promotion Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([promotionId, productId])
+  @@map("promotion_products")
+}
+
+model PromotionSKU {
+  id          String @id @default(uuid())
+  promotionId String
+  skuId       String
+
+  promotion Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  sku       SKU       @relation(fields: [skuId], references: [id], onDelete: Cascade)
+
+  @@unique([promotionId, skuId])
+  @@map("promotion_skus")
+}
+
+model ArticleCategory {
+  id          String  @id @default(uuid())
+  name        String
+  slug        String  @unique
+  description String?
+  sortOrder   Int     @default(0)
+  isActive    Boolean @default(true)
+
+  // Relations
+  articles Article[]
+
+  @@map("article_categories")
+}
+
+model ArticleTag {
+  id   String @id @default(uuid())
+  name String
+  slug String @unique
+
+  // Relations
+  articles ArticleTagMap[]
+
+  @@map("article_tags")
+}
+
+model Article {
+  id                String        @id @default(uuid())
+  articleCategoryId String
+  authorUserId      String
+  title             String
+  slug              String        @unique
+  excerpt           String?
+  coverMediaAssetId String?
+  content           String?
+  seoTitle          String?
+  seoDescription    String?
+  canonicalUrl      String?
+  status            ContentStatus @default(DRAFT)
+  isFeatured        Boolean       @default(false)
+  publishedAt       DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  // Relations
+  articleCategory ArticleCategory @relation(fields: [articleCategoryId], references: [id])
+  author          User            @relation(fields: [authorUserId], references: [id])
+  coverImage      MediaAsset?     @relation("ArticleCover", fields: [coverMediaAssetId], references: [id])
+  tags            ArticleTagMap[]
+  products        ArticleProduct[]
+
+  @@map("articles")
+}
+
+model ArticleProduct {
+  id        String @id @default(uuid())
+  articleId String
+  productId String
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([articleId, productId])
+  @@map("article_products")
+}
+
+model ArticleTagMap {
+  id           String @id @default(uuid())
+  articleId    String
+  articleTagId String
+
+  article Article    @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  tag     ArticleTag @relation(fields: [articleTagId], references: [id], onDelete: Cascade)
+
+  @@unique([articleId, articleTagId])
+  @@map("article_tag_maps")
+}
+
+model Page {
+  id                 String        @id @default(uuid())
+  authorUserId       String
+  title              String
+  slug               String        @unique
+  excerpt            String?
+  coverMediaAssetId  String?
+  content            String?
+  template           String        @default("default")
+  seoTitle           String?
+  seoDescription     String?
+  canonicalUrl       String?
+  status             ContentStatus @default(DRAFT)
+  showInFooter       Boolean       @default(false)
+  showInCheckoutHelp Boolean       @default(false)
+  showInAccountHelp  Boolean       @default(false)
+  publishedAt        DateTime?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  // Relations
+  author     User        @relation(fields: [authorUserId], references: [id])
+  coverImage MediaAsset? @relation("PageCover", fields: [coverMediaAssetId], references: [id])
+
+  @@map("pages")
+}
+
+model InventoryMovement {
+  id              String          @id @default(uuid())
+  skuId           String
+  quantityChange  Int
+  reason          InventoryReason
+  note            String?
+  createdByUserId String?
+  createdAt       DateTime        @default(now())
+
+  // Relations
+  sku       SKU   @relation(fields: [skuId], references: [id])
+  createdBy User? @relation(fields: [createdByUserId], references: [id])
+
+  @@map("inventory_movements")
+}
+
+model Cart {
+  id        String   @id @default(uuid())
+  userId    String?
+  sessionId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user  User?      @relation(fields: [userId], references: [id])
+  items CartItem[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id       String @id @default(uuid())
+  cartId   String
+  skuId    String
+  quantity Int
+
+  // Relations
+  cart Cart @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  sku  SKU  @relation(fields: [skuId], references: [id])
+
+  @@unique([cartId, skuId])
+  @@map("cart_items")
+}
+
+model Order {
+  id                String            @id @default(uuid())
+  orderCode         String            @unique
+  userId            String?
+  customerName      String
+  customerPhone     String
+  customerEmail     String?
+  province          String
+  district          String
+  ward              String
+  address           String
+  note              String?
+  fulfillmentMethod FulfillmentMethod @default(DELIVERY)
+  paymentMethod     PaymentMethod     @default(COD)
+  status            OrderStatus       @default(PENDING)
+  subtotal          Decimal           @db.Decimal(15, 2)
+  discountTotal     Decimal           @default(0) @db.Decimal(15, 2)
+  shippingFee       Decimal           @default(0) @db.Decimal(15, 2)
+  grandTotal        Decimal           @db.Decimal(15, 2)
+  internalNote      String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  // Relations
+  user  User?       @relation(fields: [userId], references: [id])
+  items OrderItem[]
+
+  @@index([customerPhone])
+  @@index([orderCode])
+  @@map("orders")
+}
+
+model OrderItem {
+  id          String  @id @default(uuid())
+  orderId     String
+  skuId       String
+  productName String
+  skuName     String
+  unitPrice   Decimal @db.Decimal(15, 2)
+  quantity    Int
+  lineTotal   Decimal @db.Decimal(15, 2)
+
+  // Relations
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  sku   SKU   @relation(fields: [skuId], references: [id])
+
+  @@map("order_items")
+}
